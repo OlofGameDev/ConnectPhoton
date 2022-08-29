@@ -6,11 +6,12 @@ using UnityEngine.UI;
 
 public class RoomListing : MonoBehaviour
 {
-    [SerializeField] TextMeshProUGUI roomName, players;
+    [SerializeField] TextMeshProUGUI roomName, roomOwner, players;
     
-    public void SetValues(string roomName,  string players)
+    public void SetValues(string roomName, string roomOwner, string players)
     {
         this.roomName.text = roomName;
+        this.roomOwner.text = roomOwner;
         this.players.text = players;
     }
     public string ReturnRoomName

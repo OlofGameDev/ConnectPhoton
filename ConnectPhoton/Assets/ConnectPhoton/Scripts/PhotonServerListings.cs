@@ -91,7 +91,7 @@ public class PhotonServerListings : MonoBehaviour
         int roomMaxPlayers = games[gameType.value].maxPlayers;
 
         maxPlayers.ClearOptions();
-        for(int i = roomMinPlayers; i < roomMaxPlayers + 1; i += 2)
+        for (int i = roomMinPlayers; i < roomMaxPlayers + 1; i += 2)
         {
             TMP_Dropdown.OptionData newData = new TMP_Dropdown.OptionData();
             newData.text = i.ToString();
@@ -126,7 +126,7 @@ public class PhotonServerListings : MonoBehaviour
             createRoomInputField.text = storedName;
         }
     }
-    
+
     public void SavePlayerName()
     {
         StringCheck(StringType.UserName);
@@ -179,7 +179,7 @@ public class PhotonServerListings : MonoBehaviour
         GameType gameTypeToLoad = PhotonGames.master.ReturnGameByIndex(gameType.value);
         PhotonNetwork.LoadLevel(gameTypeToLoad.sceneIndex);
     }
-    
+
     public void ChangeReadyStatus(bool ready)
     {
         ExitGames.Client.Photon.Hashtable newHash = new ExitGames.Client.Photon.Hashtable();
@@ -189,7 +189,7 @@ public class PhotonServerListings : MonoBehaviour
     }
     public void SetTeam()
     {
-        int onTeam = team.value + 1; 
+        int onTeam = team.value + 1;
         ExitGames.Client.Photon.Hashtable newHash = new ExitGames.Client.Photon.Hashtable();
         // Set t (team) to match the dropdown value
         newHash.Add("t", onTeam);
@@ -347,7 +347,7 @@ public class PhotonServerListings : MonoBehaviour
         }
     }
     public void LeftRoom()
-    { 
+    {
         SetServerMessage("You left the room!", serverSideMessageColor);
         inRoomPanel.gameObject.SetActive(false);
         notInRoomPanel.gameObject.SetActive(true);
@@ -357,7 +357,7 @@ public class PhotonServerListings : MonoBehaviour
     public void CreateRoomFailed(int errorCode, string errorMessage)
     {
         createRoomButton.interactable = true;
-        if(errorCode == 32766) SetServerMessage($"Failed to create a room : A room with the same name already exists. Choose another room name.", serverSideMessageColor);
+        if (errorCode == 32766) SetServerMessage($"Failed to create a room : A room with the same name already exists. Choose another room name.", serverSideMessageColor);
         else SetServerMessage($"Failed to create a room : {errorMessage}", serverSideMessageColor);
     }
     public void CreateRoom()
@@ -370,7 +370,7 @@ public class PhotonServerListings : MonoBehaviour
 
         GameType[] games = PhotonGames.master.ReturnGames;
         int maxPlayersInRoom = games[gameType.value].minPlayers + (maxPlayers.value * 2);
-        ConnectPhoton.master.CreateRoom(roomName, maxPlayersInRoom);
+        ConnectPhoton.master.CreateRoom(roomName, ownerName, maxPlayersInRoom);
     }
     internal void Disconnected(DisconnectCause cause)
     {
@@ -390,7 +390,7 @@ public class PhotonServerListings : MonoBehaviour
     /// </summary>
     public void CreatedRoom()
     {
-        
+
     }
 
     public void PlayerEnteredRoom(Player newPlayer)
@@ -406,10 +406,10 @@ public class PhotonServerListings : MonoBehaviour
     }
     public void PlayerLeftRoom(Player otherPlayer)
     {
-        for(int i = 0; i < playerListings.Count; ++i)
+        for (int i = 0; i < playerListings.Count; ++i)
         {
             // If this is the playerlisting of the user that left
-            if(playerListings[i].compareUserID(otherPlayer.UserId))
+            if (playerListings[i].compareUserID(otherPlayer.UserId))
             {
                 Destroy(playerListings[i].gameObject);
                 playerListings.RemoveAt(i);
@@ -422,7 +422,7 @@ public class PhotonServerListings : MonoBehaviour
         {
             PhotonNetwork.CurrentRoom.IsOpen = true;
         }
-        
+
     }
     public void JoinRoomFailed(short returnCode, string message)
     {
@@ -431,16 +431,33 @@ public class PhotonServerListings : MonoBehaviour
     public void MasterClientSwitched(Player newMasterClient)
     {
         // Loop through all the playerListings and set the master/ownder bool accordingly
-        foreach(PlayerListing p in playerListings)
+        foreach (PlayerListing p in playerListings)
         {
             p.SetMaster(p.compareUserID(newMasterClient.UserId));
         }
         string newServerMessage = PhotonNetwork.IsMasterClient ? "You are the new room-owner!" : $"{newMasterClient.NickName} is the new room-owner!";
         SetServerMessage(newServerMessage, serverSideMessageColor);
-        if(PhotonNetwork.IsMasterClient)
+        if (PhotonNetwork.IsMasterClient)
         {
+            //Enable the startbutton if we are the new Master Client
             startButton.enabled = true;
             startButton.interactable = true;
+
+            // Change the custom property "RoomOwner" so the new Room owner propertie is updated in the rooms list (for other players in the lobby)
+            string ownerName = "Unknown User";
+            if (PlayerPrefs.HasKey("UserName")) ownerName = PlayerPrefs.GetString("UserName");
+
+            ExitGames.Client.Photon.Hashtable customProperties = PhotonNetwork.CurrentRoom.CustomProperties;
+            customProperties["RoomOwner"] = ownerName;
+            PhotonNetwork.CurrentRoom.SetCustomProperties(customProperties);
+        }
+    }
+    public void OnRoomPropertiesUpdate(ExitGames.Client.Photon.Hashtable propertiesThatChanged)
+    {
+        // Room owner has changed
+        if(propertiesThatChanged.ContainsKey("RoomOwner"))
+        {
+            Debug.Log($"Room owner has changed to {propertiesThatChanged["RoomOwner"]}");
         }
     }
     public void JoinedRoom(string roomName)
@@ -502,7 +519,9 @@ public class PhotonServerListings : MonoBehaviour
             roomListUpdateCooldownTimer = 2f;
             SetServerMessage("Roomslist updated!", serverSideMessageColor);
         }
-        foreach (RoomInfo RI in roomList)
+        // Avoid errors if the roomlist is modified while the loop is running
+        List<RoomInfo> roomListLocal = roomList;
+        foreach (RoomInfo RI in roomListLocal)
         {
             if (RI.RemovedFromList)
             {
@@ -517,13 +536,14 @@ public class PhotonServerListings : MonoBehaviour
             }
             else
             {
+                string roomOwner = (string)RI.CustomProperties["RoomOwner"];
                 bool matchFound = false;
                 foreach (RoomListing RL in roomListings)
                 {
                     if (RL.ReturnRoomName == RI.Name)
                     {
                         matchFound = true;
-                        RL.SetValues(RI.Name, RI.PlayerCount + "/" + RI.MaxPlayers);
+                        RL.SetValues(RI.Name, roomOwner, RI.PlayerCount + "/" + RI.MaxPlayers);
                         break;
                     }
                 }
@@ -531,8 +551,7 @@ public class PhotonServerListings : MonoBehaviour
                 {
                     GameObject listing = Instantiate(roomListingPrefab, roomsListingContent);
                     RoomListing thisListing = listing.GetComponent<RoomListing>();
-
-                    thisListing.SetValues(RI.Name, RI.PlayerCount + "/" + RI.MaxPlayers);
+                    thisListing.SetValues(RI.Name, roomOwner, RI.PlayerCount + "/" + RI.MaxPlayers);
                     roomListings.Add(thisListing);
                 }
 

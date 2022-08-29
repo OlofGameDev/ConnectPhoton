@@ -35,12 +35,25 @@ public class ConnectPhoton : MonoBehaviourPunCallbacks
     #endregion Monobehavior Methods
 
     #region Custom Methods
-    public void CreateRoom(string roomName, int maxPlayers)
+    public void CreateRoom(string roomName, string ownerName, int maxPlayers)
     {
         // Create a new RoomOptions
         RoomOptions thisRoomOptions = new RoomOptions() { MaxPlayers = (byte)maxPlayers, PublishUserId = true };
         // Create a hash table for custom options
         ExitGames.Client.Photon.Hashtable customOptions = new ExitGames.Client.Photon.Hashtable();
+
+        // Custom properties are not accessable in the lobby by defauilt. We need to add them.
+        List<string> accessableInLobby = new List<string>();
+        // Add the name of the room owner to the custom properties
+        customOptions.Add("RoomOwner", ownerName);
+        // Add the room owner name as a property that is accessable in the lobby
+        accessableInLobby.Add("RoomOwner");
+
+        //customOptions.Add("PW", "password123");
+
+        // Assign the custom properties to the Room Options
+        thisRoomOptions.CustomRoomProperties = customOptions;
+        thisRoomOptions.CustomRoomPropertiesForLobby = accessableInLobby.ToArray();
         // Create a room
         PhotonNetwork.CreateRoom(roomName, thisRoomOptions );
     }
@@ -71,6 +84,11 @@ public class ConnectPhoton : MonoBehaviourPunCallbacks
     {
         base.OnMasterClientSwitched(newMasterClient);
         PhotonServerListings.master.MasterClientSwitched(newMasterClient);
+    }
+    public override void OnRoomPropertiesUpdate(ExitGames.Client.Photon.Hashtable propertiesThatChanged)
+    {
+        base.OnRoomPropertiesUpdate(propertiesThatChanged);
+        PhotonServerListings.master.OnRoomPropertiesUpdate(propertiesThatChanged);
     }
     public override void OnCreatedRoom()
     {
