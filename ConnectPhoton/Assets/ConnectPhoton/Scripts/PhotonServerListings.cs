@@ -20,14 +20,14 @@ public class PhotonServerListings : MonoBehaviour
 {
     public static PhotonServerListings master;
 
-    [Header("'Server' messages")]
+    [Header("Messages")]
     [SerializeField] Transform serverMessageContent;
     [SerializeField] GameObject serverMessagePrefab;
     [SerializeField] Color serverSideMessageColor;
     [SerializeField] Color localMessageColor;
     public Color GetLocalMessageColor { get { return localMessageColor; } }
 
-    [Header("Not In Room")]
+    [Header("In Lobby")]
     [SerializeField] TextMeshProUGUI connectingText;
     [SerializeField] Transform notInRoomPanel;
     [SerializeField] Transform roomsListingContent;
@@ -55,6 +55,9 @@ public class PhotonServerListings : MonoBehaviour
 
     float roomListUpdateCooldownTimer;
 
+
+    List<List<RoomInfo>> allRoomLists;
+
     #region Monobehaviors
     private void Awake()
     {
@@ -70,6 +73,9 @@ public class PhotonServerListings : MonoBehaviour
         notInRoomPanel.gameObject.SetActive(true);
         inRoomPanel.gameObject.SetActive(false);
         SetGameTypeOptions();
+
+        allRoomLists = new List<List<RoomInfo>>();
+
     }
     // Update is called once per frame
     void Update()
@@ -349,8 +355,8 @@ public class PhotonServerListings : MonoBehaviour
     public void LeftRoom()
     {
         SetServerMessage("You left the room!", serverSideMessageColor);
-        inRoomPanel.gameObject.SetActive(false);
-        notInRoomPanel.gameObject.SetActive(true);
+        inRoomPanel.gameObject?.SetActive(false);
+        notInRoomPanel.gameObject?.SetActive(true);
         userName.enabled = true;
         initMaxPlayersComplete = false;
     }
@@ -375,14 +381,14 @@ public class PhotonServerListings : MonoBehaviour
     internal void Disconnected(DisconnectCause cause)
     {
         SetServerMessage($"Disconnected due to : {cause.ToString()}.", serverSideMessageColor);
-        connectingText.gameObject.SetActive(true);
-        inRoomPanel.gameObject.SetActive(true);
-        notInRoomPanel.gameObject.SetActive(false);
+        connectingText.gameObject?.SetActive(true);
+        inRoomPanel.gameObject?.SetActive(true);
+        notInRoomPanel.gameObject?.SetActive(false);
     }
     public void ConnectedToMaster()
     {
         createRoomButton.interactable = true;
-        connectingText.gameObject.SetActive(false);
+        connectingText.gameObject?.SetActive(false);
         SetServerMessage("Connected to the server!", serverSideMessageColor);
     }
     /// <summary>
@@ -411,7 +417,7 @@ public class PhotonServerListings : MonoBehaviour
             // If this is the playerlisting of the user that left
             if (playerListings[i].compareUserID(otherPlayer.UserId))
             {
-                Destroy(playerListings[i].gameObject);
+                if(playerListings[i].gameObject.activeInHierarchy) Destroy(playerListings[i].gameObject);
                 playerListings.RemoveAt(i);
                 SetServerMessage($"{otherPlayer.NickName} left the room.", serverSideMessageColor);
                 break;
@@ -467,6 +473,11 @@ public class PhotonServerListings : MonoBehaviour
         {
             Destroy(t.gameObject);
         }
+        roomListings.Clear();
+        foreach(Transform t in roomsListingContent)
+        {
+            Destroy(t.gameObject);
+        }
 
         if (!PhotonNetwork.IsMasterClient)
         {
@@ -483,8 +494,8 @@ public class PhotonServerListings : MonoBehaviour
         this.roomName.text = roomName;
         this.playersInRoom.text = PhotonNetwork.CurrentRoom.PlayerCount + "/" + PhotonNetwork.CurrentRoom.MaxPlayers;
 
-        inRoomPanel.gameObject.SetActive(true);
-        notInRoomPanel.gameObject.SetActive(false);
+        inRoomPanel.gameObject?.SetActive(true);
+        notInRoomPanel.gameObject?.SetActive(false);
         userName.enabled = false;
         readyToggle.isOn = false;
         team.value = 0;
@@ -519,18 +530,17 @@ public class PhotonServerListings : MonoBehaviour
             roomListUpdateCooldownTimer = 2f;
             SetServerMessage("Roomslist updated!", serverSideMessageColor);
         }
-        // Avoid errors if the roomlist is modified while the loop is running
-        List<RoomInfo> roomListLocal = roomList;
-        foreach (RoomInfo RI in roomListLocal)
+        foreach (RoomInfo RI in roomList)
         {
             if (RI.RemovedFromList)
             {
-                foreach (RoomListing RL in roomListings)
+                // ToArray() to avoid error if roomListing content changes during the loop
+                foreach (RoomListing RL in roomListings.ToArray())
                 {
                     if (RL.ReturnRoomName == RI.Name)
                     {
                         roomListings.Remove(RL);
-                        Destroy(RL.gameObject);
+                        if (RL.gameObject.activeInHierarchy) Destroy(RL.gameObject);
                     }
                 }
             }
@@ -538,7 +548,7 @@ public class PhotonServerListings : MonoBehaviour
             {
                 string roomOwner = (string)RI.CustomProperties["RoomOwner"];
                 bool matchFound = false;
-                foreach (RoomListing RL in roomListings)
+                foreach (RoomListing RL in roomListings.ToArray())
                 {
                     if (RL.ReturnRoomName == RI.Name)
                     {
@@ -557,6 +567,11 @@ public class PhotonServerListings : MonoBehaviour
 
             }
         }
+        /*
+        // Add the updated room list to the execution queue
+        allRoomLists.Add(roomList);
+        // If no execution is running, run the first in the list
+        if (allRoomLists.Count == 1) ExecuteFirstRoomListItem();*/
     }
     #endregion Called from ConnectPhoton
 }

@@ -60,6 +60,8 @@ public class ConnectPhoton : MonoBehaviourPunCallbacks
     public void JoinRoom(string roomName)
     {
         //PhotonServerListings.master.SetServerMessage("Attempting to join room.", PhotonServerListings.master.GetLocalMessageColor);
+
+        // Join the room
         if(PhotonNetwork.InLobby) PhotonNetwork.JoinRoom(roomName);
     }
     public void ChangeScene(string sceneName)
