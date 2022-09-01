@@ -355,8 +355,8 @@ public class PhotonServerListings : MonoBehaviour
     public void LeftRoom()
     {
         SetServerMessage("You left the room!", serverSideMessageColor);
-        inRoomPanel.gameObject?.SetActive(false);
-        notInRoomPanel.gameObject?.SetActive(true);
+        if(inRoomPanel != null) inRoomPanel.gameObject?.SetActive(false);
+        if(notInRoomPanel != null) notInRoomPanel.gameObject?.SetActive(true);
         userName.enabled = true;
         initMaxPlayersComplete = false;
     }
@@ -417,7 +417,7 @@ public class PhotonServerListings : MonoBehaviour
             // If this is the playerlisting of the user that left
             if (playerListings[i].compareUserID(otherPlayer.UserId))
             {
-                if(playerListings[i].gameObject.activeInHierarchy) Destroy(playerListings[i].gameObject);
+                if(playerListings[i] != null && playerListings[i].gameObject != null) Destroy(playerListings[i].gameObject);
                 playerListings.RemoveAt(i);
                 SetServerMessage($"{otherPlayer.NickName} left the room.", serverSideMessageColor);
                 break;
@@ -446,8 +446,11 @@ public class PhotonServerListings : MonoBehaviour
         if (PhotonNetwork.IsMasterClient)
         {
             //Enable the startbutton if we are the new Master Client
-            startButton.enabled = true;
-            startButton.interactable = true;
+            if(startButton != null)
+            {
+                startButton.enabled = true;
+                startButton.interactable = true;
+            }
 
             // Change the custom property "RoomOwner" so the new Room owner propertie is updated in the rooms list (for other players in the lobby)
             string ownerName = "Unknown User";
@@ -540,7 +543,7 @@ public class PhotonServerListings : MonoBehaviour
                     if (RL.ReturnRoomName == RI.Name)
                     {
                         roomListings.Remove(RL);
-                        if (RL.gameObject.activeInHierarchy) Destroy(RL.gameObject);
+                        if (RL.gameObject != null) Destroy(RL.gameObject);
                     }
                 }
             }
